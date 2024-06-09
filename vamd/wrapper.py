@@ -1,6 +1,12 @@
 from .logger import get_logger
 logger = get_logger(__name__)
 import pytorch_lightning as pl
+from collections import defaultdict
+import torch, time, mdtraj, os
+import numpy as np
+from .model import VAMDModel
+from sit.transport import create_transport, Sampler
+from functools import partial
 
 def gather_log(log, world_size):
     if world_size == 1:
@@ -54,22 +60,30 @@ class Wrapper(pl.LightningModule):
             self.ema.update(self.model)
 
     def training_step(self, batch, batch_idx):
+        self.stage = 'train'
         if self.args.ema:
             if (self.ema.device != self.device):
                 self.ema.to(self.device)
-        return self.general_step(batch, stage='train')
+        return self.general_step(batch)
 
     def validation_step(self, batch, batch_idx):
+        self.stage = 'val'
         if self.args.ema:
             if (self.ema.device != self.device):
                 self.ema.to(self.device)
             if (self.cached_weights is None):
                 self.load_ema_weights()
 
-        self.general_step(batch, stage='val')
+        self.general_step(batch)
         self.validation_step_extra(batch, batch_idx)
         if self.args.validate and self.iter_step % self.args.print_freq == 0:
             self.print_log()
+
+    def general_step(self, batch):
+        out = self.general_step(batch)
+        self.log('dur', time.time() - self.last_log_time)
+        self.last_log_time = time.time()
+        return out
 
     def validation_step_extra(self, batch, batch_idx):
         pass
@@ -145,3 +159,60 @@ class Wrapper(pl.LightningModule):
         )
         return optimizer
 
+class VAMDWrapper(Wrapper):
+
+    def __init__(self, args):
+        super().__init__(args)
+        self.model = VAMDModel(args)
+
+        self.transport = create_transport(
+            args.path_type,
+            args.prediction,
+            None,  # args.loss_weight,
+            # args.train_eps,
+            # args.sample_eps,
+        )  # default: velocity; 
+        self.transport_sampler = Sampler(self.transport)
+
+        if args.ema:
+            self.ema = ExponentialMovingAverage(
+                model=self.model, decay=args.ema_decay
+            )
+            self.cached_weights = None
+
+
+
+    def general_step(self, batch):
+        
+        x = batch['pos']
+        x = x - x.mean(-2, keepdims=True)
+        out_dict = self.transport.training_losses(
+            model=self.model,
+            x1=x,
+            mask=torch.ones_like(x),
+            model_kwargs={'mask': x.new_ones(*x.shape[:-1])},
+        )
+        loss = out_dict['loss']
+        self.log('loss', loss)
+        self.log('time', out_dict['t'])
+        return loss.mean()
+
+    def inference(self, batch):
+        B, N, _ = batch['pos'].shape
+        zs = torch.randn(B, N, 3, device=self.device)
+        sample_fn = self.transport_sampler.sample_ode(sampling_method=self.args.sampling_method)
+        samples = sample_fn(zs, partial(self.model, mask=zs.new_ones(*zs.shape[:-1])))[-1]
+        return samples
+
+    def validation_step_extra(self, batch, batch_idx):
+
+        do_inference = batch_idx < self.args.inference_batches and (
+                (self.current_epoch + 1) % self.args.inference_freq == 0 or \
+                self.args.validate) and self.trainer.is_global_zero
+        if do_inference:
+            samples = self.inference(batch)
+            top = mdtraj.load('/data/cb/scratch/share/mdgen/4AA_sims/LIFE/LIFE.pdb').top
+            traj = mdtraj.Trajectory(samples.cpu().numpy(), top)
+            path = os.path.join(os.environ["MODEL_DIR"], f'epoch{self.current_epoch}_batch{batch_idx}.pdb')
+            traj.save(path)
+                     

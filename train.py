@@ -3,7 +3,8 @@ args = parse_train_args()
 from vamd.logger import get_logger
 logger = get_logger(__name__)
 
-from vamd.wrapper import Wrapper
+import torch, wandb, os
+from vamd.wrapper import VAMDWrapper
 from vamd.dataset import VAMDDataset
 from pytorch_lightning.callbacks import ModelCheckpoint, ModelSummary
 import pytorch_lightning as pl
@@ -14,15 +15,13 @@ if args.wandb:
     wandb.init(
         entity=os.environ["WANDB_ENTITY"],
         settings=wandb.Settings(start_method="fork"),
-        project="mdgen",
+        project="vamd",
         name=args.run_name,
         config=args,
     )
 
 ds = VAMDDataset(args)
 trainset, valset = torch.utils.data.random_split(ds, [len(ds) - 10000, 10000])
-transet[0]
-exit()
 
 train_loader = torch.utils.data.DataLoader(
     trainset,
@@ -36,7 +35,7 @@ val_loader = torch.utils.data.DataLoader(
     num_workers=args.num_workers,
 )
 
-model = Wrapper(args)
+model = VAMDWrapper(args)
     
 trainer = pl.Trainer(
     accelerator="gpu" if torch.cuda.is_available() else 'auto',

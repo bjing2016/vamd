@@ -2,7 +2,7 @@ from .logger import get_logger
 logger = get_logger(__name__)
 import pytorch_lightning as pl
 from collections import defaultdict
-import torch, time, mdtraj, os
+import torch, time, mdtraj, os, wandb
 import numpy as np
 from .model import VAMDModel
 from sit.transport import create_transport, Sampler

@@ -60,7 +60,7 @@ class VAMDModel(nn.Module):
         x = self.linear_in(x)
         t = self.t_embedder(t)
         if self.args.abs_pos_emb:
-            x = x + self.pos_emb
+            x = x + self.pos_embed
         for layer in self.layers:
             x = layer(x, t, mask)
         return self.linear_out(x, t)

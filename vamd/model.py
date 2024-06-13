@@ -1,5 +1,6 @@
 import torch.nn as nn
 import torch
+import numpy as np
 from sit.layers import gelu, modulate, TimestepEmbedder, FinalLayer
 from .mha import MultiheadAttention
 
@@ -25,6 +26,8 @@ class VAMDModel(nn.Module):
         )
         self.linear_out = FinalLayer(args.embed_dim, 3)
 
+        self.initialize_weights()
+
     def initialize_weights(self):
         # Initialize transformer layers:
         def _basic_init(module):
@@ -37,7 +40,7 @@ class VAMDModel(nn.Module):
 
         # # Initialize (and freeze) pos_embed by sin-cos embedding:
         if self.args.abs_pos_emb:
-            pos_embed = get_1d_sincos_pos_embed_from_grid(self.pos_embed.shape[-1], np.arange(self.args.crop))
+            pos_embed = get_1d_sincos_pos_embed_from_grid(self.pos_embed.shape[-1], np.arange(self.args.abs_pos_emb))
             self.pos_embed.data.copy_(torch.from_numpy(pos_embed).float().unsqueeze(0))
 
         # Initialize timestep embedding MLP:

@@ -38,7 +38,7 @@ def parse_train_args():
     group.add_argument('--ema_decay', type=float, default=0.999)
     group.add_argument("--lr", type=float, default=1e-4)
 
-    ## Optimization settings
+    ## Model settings
     group = parser.add_argument_group("Model settings")
     group.add_argument("--embed_dim", type=int, default=256)
     group.add_argument("--mha_heads", type=int, default=16)
@@ -51,6 +51,9 @@ def parse_train_args():
     group.add_argument("--sampling_method", type=str, default="dopri5", choices=["dopri5", "euler"])
     # group.add_argument("--loss-weight", type=none_or_str, default=None, choices=[None, "velocity", "likelihood"])
     
+    group = parser.add_argument_group("MD arguments")
+    group.add_argument("--num_samples", type=int, default=1000)
+    group.add_argument("--sample_dir", type=str, default='/tmp/default')
     
     args = parser.parse_args()
     os.environ["MODEL_DIR"] = os.path.join("workdir", args.run_name)

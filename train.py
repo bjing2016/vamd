@@ -21,7 +21,7 @@ if args.wandb:
     )
 
 ds = VAMDDataset(args)
-trainset, valset = torch.utils.data.random_split(ds, [len(ds) - 10000, 10000])
+trainset, valset = torch.utils.data.random_split(ds, [len(ds) - 100, 100])
 
 train_loader = torch.utils.data.DataLoader(
     trainset,
@@ -50,6 +50,7 @@ trainer = pl.Trainer(
         ModelCheckpoint(
             dirpath=os.environ["MODEL_DIR"], 
             save_top_k=-1,
+            save_last=True,
             every_n_epochs=args.ckpt_freq,
         ),
         ModelSummary(max_depth=2),

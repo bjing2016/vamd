@@ -106,8 +106,8 @@ class Wrapper(pl.LightningModule):
                     logger.warning(f"Param {name} has no grad")
 
     def on_load_checkpoint(self, checkpoint):
-        logger.info('Loading EMA state dict')
         if self.args.ema:
+            logger.info('Loading EMA state dict')
             ema = checkpoint["ema"]
             self.ema.load_state_dict(ema)
 
@@ -183,6 +183,7 @@ class VAMDWrapper(Wrapper):
 
 
     def general_step(self, batch):
+        
         
         x = batch['pos']
         x = x - x.mean(-2, keepdims=True)

@@ -198,6 +198,7 @@ class VAMDWrapper(Wrapper):
         self.log('time', out_dict['t'])
         return loss.mean()
 
+    @torch.no_grad()
     def inference(self, batch):
         B, N, _ = batch['pos'].shape
         zs = torch.randn(B, N, 3, device=self.device)

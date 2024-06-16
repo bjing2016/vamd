@@ -55,6 +55,8 @@ def parse_train_args():
     group.add_argument("--num_samples", type=int, default=1000)
     group.add_argument("--num_steps", type=int, default=10000)
     group.add_argument("--no_md", action='store_true')
+    group.add_argument("--md_only", action='store_true')
+    group.add_argument("--no_relax", action='store_true')
     group.add_argument("--sample_dir", type=str, default='/tmp/default')
     
     args = parser.parse_args()

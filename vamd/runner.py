@@ -17,6 +17,7 @@ class TopologySupplier(torch.utils.data.IterableDataset):
     def __iter__(self):
         pdb = PDBFile('/data/cb/scratch/share/mdgen/4AA_sims/LIFE/LIFE.pdb')
         mol = rdkit.Chem.rdmolfiles.MolFromPDBFile('/data/cb/scratch/share/mdgen/4AA_sims/LIFE/LIFE.pdb')
+        
         ref_smi = rdkit.Chem.rdmolfiles.MolToSmiles(mol)
         
         while True:
@@ -183,7 +184,9 @@ class VAMDRunner:
         traj.save(f'{self.args.sample_dir}/tmp.pdb')
                
         
-        mol = rdkit.Chem.rdmolfiles.MolFromPDBFile(f'{self.args.sample_dir}/tmp.pdb')
+        mol = rdkit.Chem.rdmolfiles.MolFromPDBFile(f'{self.args.sample_dir}/tmp.pdb', proximityBonding=True)
+        if not mol:
+            return None
         smi = rdkit.Chem.rdmolfiles.MolToSmiles(mol)
         return smi
 
@@ -203,7 +206,8 @@ class VAMDRunner:
         if not self.args.no_relax:
             sim.minimizeEnergy()
 
-        if check_stereo and (not self.check_stereochemistry(top, pos, ref_smi)):
+        if check_stereo and (not self.check_stereochemistry(modeller.topology, get_positions(sim), ref_smi)):
+            logger.info("Rejecting relaxed structure: wrong stereochemistry")
             return top, None
             
         sim.context.setVelocitiesToTemperature(350 * unit.kelvin)
@@ -223,7 +227,7 @@ class VAMDRunner:
             self.log('stereo_check', int(pos is not None))
 
             if pos is None:
-                pos = batch['ref_pos'] # stereochemistry check failed
+                pos = batch['ref_pos'][i] # stereochemistry check failed
             
             callback(top, pos)
         

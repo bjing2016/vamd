@@ -5,3 +5,4 @@ wandb
 *.pdb
 scratch.ipynb
 *.xtc
+commands.sh

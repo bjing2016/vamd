@@ -73,8 +73,11 @@ class VAMDRunner:
         mtime = os.path.getmtime(f"{self.ckpt_dir}/last.ckpt")
         if (self.ckpt_time is None) or (mtime > self.ckpt_time):
             logger.info(f"Reloading checkpoint {self.ckpt_dir}/last.ckpt")
-            self.load_model(f"{self.ckpt_dir}/last.ckpt")
-            self.ckpt_time = mtime
+            try:
+                self.model = self.load_model(f"{self.ckpt_dir}/last.ckpt")
+                self.ckpt_time = mtime
+            except:
+                logger.warning("Error reloading checkpoint")
         return True
         
 

@@ -64,7 +64,10 @@ class Wrapper(pl.LightningModule):
         if self.args.ema:
             if (self.ema.device != self.device):
                 self.ema.to(self.device)
-        return self.general_step(batch)
+        out = self.general_step(batch)
+        self.log('dur', time.time() - self.last_log_time)
+        self.last_log_time = time.time()
+        return out
 
     def validation_step(self, batch, batch_idx):
         self.stage = 'val'
@@ -74,16 +77,13 @@ class Wrapper(pl.LightningModule):
             if (self.cached_weights is None):
                 self.load_ema_weights()
 
+        
         self.general_step(batch)
         self.validation_step_extra(batch, batch_idx)
-        if self.args.validate and self.iter_step % self.args.print_freq == 0:
-            self.print_log()
-
-    def general_step(self, batch):
-        out = self.general_step(batch)
         self.log('dur', time.time() - self.last_log_time)
         self.last_log_time = time.time()
-        return out
+        if self.args.validate and self.iter_step % self.args.print_freq == 0:
+            self.print_log()
 
     def validation_step_extra(self, batch, batch_idx):
         pass

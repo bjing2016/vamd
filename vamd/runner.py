@@ -72,9 +72,9 @@ class VAMDRunner:
             return False
         mtime = os.path.getmtime(f"{self.ckpt_dir}/last.ckpt")
         if (self.ckpt_time is None) or (mtime > self.ckpt_time):
+            logger.info(f"Reloading checkpoint {self.ckpt_dir}/last.ckpt")
             self.load_model(f"{self.ckpt_dir}/last.ckpt")
-        self.ckpt_time = mtime
-        logger.info(f"Reloading checkpoint {self.ckpt_dir}/last.ckpt")
+            self.ckpt_time = mtime
         return True
         
 
@@ -130,7 +130,8 @@ class VAMDRunner:
             sim.context.setPositions(modeller.positions)
 
             sim.minimizeEnergy()
-            sim.step(100000)
+            sim.context.setVelocitiesToTemperature(350 * unit.kelvin)
+            sim.step(self.args.num_steps)
 
             callback(modeller.topology, get_positions(sim))
         

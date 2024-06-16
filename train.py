@@ -5,7 +5,7 @@ logger = get_logger(__name__)
 
 import torch, wandb, os
 from vamd.wrapper import VAMDWrapper
-from vamd.dataset import VAMDDataset
+from vamd.dataset import VAMDDataset, VAMDValDataset
 from pytorch_lightning.callbacks import ModelCheckpoint, ModelSummary
 import pytorch_lightning as pl
 
@@ -20,14 +20,13 @@ if args.wandb:
         config=args,
     )
 
-ds = VAMDDataset(args)
-trainset, valset = torch.utils.data.random_split(ds, [len(ds) - 100, 100])
+trainset = VAMDDataset(args)
+valset = VAMDValDataset(args)
 
 train_loader = torch.utils.data.DataLoader(
     trainset,
     batch_size=args.batch_size,
     num_workers=args.num_workers,
-    shuffle=True,
 )
 val_loader = torch.utils.data.DataLoader(
     valset,
@@ -49,15 +48,14 @@ trainer = pl.Trainer(
     callbacks=[
         ModelCheckpoint(
             dirpath=os.environ["MODEL_DIR"], 
-            save_top_k=-1,
+            save_top_k=0,
             save_last=True,
-            every_n_epochs=args.ckpt_freq,
+            every_n_train_steps=args.ckpt_freq,
         ),
         ModelSummary(max_depth=2),
     ],
     accumulate_grad_batches=args.accumulate_grad,
     val_check_interval=args.val_freq,
-    check_val_every_n_epoch=args.val_epoch_freq,
     logger=False
 )
 

@@ -3,25 +3,40 @@ import numpy as np
 from .logger import get_logger
 logger = get_logger(__name__)
 
-class VAMDDataset(torch.utils.data.Dataset):
+class VAMDDataset(torch.utils.data.IterableDataset):
     def __init__(self, args):
         self.args = args
 
+    # def __len__(self):
+    #     return self.args.num_samples
+
+    def __iter__(self):
+        while True:
+            idx = random.randint(0, self.args.num_samples - 2)
+            path = f"{self.args.sample_dir}/{idx}.pdb"
+            if not os.path.exists(path):
+                continue
+            try:
+                traj = mdtraj.load(path)
+            except:
+                logger.warning(f"Error loading {path}")
+                continue
+            yield {'pos': traj.xyz[0]}
+
+
+class VAMDValDataset(torch.utils.data.Dataset):
+    def __init__(self, args):
+        self.args = args
+        self.traj = mdtraj.load(
+            '/data/cb/scratch/share/mdgen/4AA_sims_implicit/LIFE/LIFE.xtc', 
+            top='/data/cb/scratch/share/mdgen/4AA_sims_implicit/LIFE/LIFE.pdb',
+        )
+
     def __len__(self):
-        return self.args.num_samples
+        return len(self.traj)
 
     def __getitem__(self, idx):
-        path = f"{self.args.sample_dir}/{idx}.pdb"
-        if not os.path.exists(path):
-            path = random.choice(os.listdir(self.args.sample_dir))
-            path = f"{self.args.sample_dir}/{path}"
-        try:
-            traj = mdtraj.load(path)
-        except:
-            logger.warning(f"Error loading {path}")
-            return self[(idx+1)%len(self)]
-        return {'pos': traj.xyz[0]}
-
+        return {'pos': self.traj.xyz[idx]}
 
         
         

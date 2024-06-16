@@ -186,7 +186,6 @@ class VAMDWrapper(Wrapper):
         
         
         x = batch['pos']
-        x = x - x.mean(-2, keepdims=True)
         out_dict = self.transport.training_losses(
             model=self.model,
             x1=x,

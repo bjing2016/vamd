@@ -6,6 +6,7 @@ from openmm import unit, LangevinMiddleIntegrator, Platform, MonteCarloBarostat
 import rdkit.Chem
 from .logger import get_logger
 from collections import defaultdict
+from scipy.spatial.transform import Rotation
 logger = get_logger(__name__)
 
 get_positions = lambda sim: sim.context.getState(getPositions=True).getPositions(asNumpy=True)
@@ -228,6 +229,7 @@ class VAMDRunner:
 
             if pos is None:
                 pos = batch['ref_pos'][i] # stereochemistry check failed
+                pos = pos.numpy() @ Rotation.random().as_matrix().T.astype(np.float32)
             
             callback(top, pos)
         

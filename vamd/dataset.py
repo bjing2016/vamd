@@ -1,5 +1,6 @@
 import torch, mdtraj, os, random
 import numpy as np
+from scipy.spatial.transform import Rotation
 from .logger import get_logger
 logger = get_logger(__name__)
 
@@ -36,7 +37,12 @@ class VAMDValDataset(torch.utils.data.Dataset):
         return len(self.traj)
 
     def __getitem__(self, idx):
-        return {'pos': self.traj.xyz[idx]}
+        pos = self.traj.xyz[idx]
+        pos -= pos.mean(0)
+        pos = pos @ Rotation.random().as_matrix().T.astype(np.float32)
+        return {
+            'pos': pos,
+        }
 
         
         

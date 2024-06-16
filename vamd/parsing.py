@@ -13,6 +13,7 @@ def parse_train_args():
     group.add_argument("--epochs", type=int, default=100)
     group.add_argument("--train_batches", type=int, default=None)
     group.add_argument("--val_batches", type=int, default=None)
+    group.add_argument("--val_examples", type=int, default=10000)
     group.add_argument("--batch_size", type=int, default=10)
     group.add_argument("--val_freq", type=int, default=None)
     group.add_argument("--no_validate", action='store_true')
@@ -53,6 +54,7 @@ def parse_train_args():
     group = parser.add_argument_group("MD arguments")
     group.add_argument("--num_samples", type=int, default=1000)
     group.add_argument("--num_steps", type=int, default=10000)
+    group.add_argument("--no_md", action='store_true')
     group.add_argument("--sample_dir", type=str, default='/tmp/default')
     
     args = parser.parse_args()

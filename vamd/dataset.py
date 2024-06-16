@@ -31,15 +31,12 @@ class VAMDValDataset(torch.utils.data.Dataset):
             '/data/cb/scratch/share/mdgen/4AA_sims_implicit/LIFE/LIFE.xtc', 
             top='/data/cb/scratch/share/mdgen/4AA_sims_implicit/LIFE/LIFE.pdb',
         )
-        self.idx = np.arange(len(self))
-        np.random.seed(137)
-        np.random.shuffle(self.idx)
-
+        
     def __len__(self):
         return len(self.traj)
 
     def __getitem__(self, idx):
-        return {'pos': self.traj.xyz[self.idx[idx]]}
+        return {'pos': self.traj.xyz[idx]}
 
         
         

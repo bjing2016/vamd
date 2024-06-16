@@ -19,9 +19,11 @@ if args.wandb:
         name=args.run_name,
         config=args,
     )
+ds = VAMDValDataset(args)
+trainset, valset = torch.utils.data.random_split(ds, [len(ds) - args.val_examples, args.val_examples])
 
-trainset = VAMDDataset(args)
-valset = VAMDValDataset(args)
+if not args.no_md:
+    trainset = VAMDDataset(args)
 
 train_loader = torch.utils.data.DataLoader(
     trainset,

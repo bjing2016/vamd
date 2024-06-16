@@ -71,6 +71,8 @@ class VAMDRunner:
         
         self.iter = 0
         self.supplier = iter(torch.utils.data.DataLoader(TopologySupplier(args), collate_fn=collate_fn, batch_size=args.batch_size))
+
+        os.makedirs(self.args.sample_dir, exist_ok=True)
         
     def log(self, key, data):
         self._log[key].append(data)
@@ -160,7 +162,7 @@ class VAMDRunner:
         traj = mdtraj.Trajectory(pos, top)
         traj = traj.atom_slice(top.select("protein and (symbol != H)"))
         logger.info(f"Saving to {self.args.sample_dir}/{idx}.pdb")
-        os.makedirs(self.args.sample_dir, exist_ok=True)
+        
 
         try:
             traj.save(f'{self.args.sample_dir}/{idx}.pdb')

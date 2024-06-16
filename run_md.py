@@ -9,5 +9,14 @@ from vamd.runner import VAMDRunner
 
 torch.set_float32_matmul_precision('medium')
 
+if args.wandb:
+    wandb.init(
+        entity=os.environ["WANDB_ENTITY"],
+        settings=wandb.Settings(start_method="fork"),
+        project="vamd",
+        name=args.run_name,
+        config=args,
+    )
+
 runner = VAMDRunner(args)
 runner.run()

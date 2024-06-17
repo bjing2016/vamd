@@ -10,6 +10,7 @@ from scipy.spatial.transform import Rotation
 logger = get_logger(__name__)
 
 get_positions = lambda sim: sim.context.getState(getPositions=True).getPositions(asNumpy=True)
+get_energy = lambda sim: sim.context.getState(getEnergy=True).getPotentialEnergy()
 
 class TopologySupplier(torch.utils.data.IterableDataset):
     def __init__(self, args):
@@ -174,8 +175,24 @@ class VAMDRunner:
         self.iter += 1
 
     def check_stereochemistry(self, top, pos, ref_smi):
+
+        traj = mdtraj.Trajectory(pos, mdtraj.Topology.from_openmm(top))
+        _, omega = mdtraj.compute_omega(traj)
+        omega = omega % (2*np.pi)
+        if np.any(np.abs(omega - np.pi) > np.pi/2):
+            return False # peptide bond violation
+        
+        
         smi = self.mol_to_smiles(top, pos)
         return smi == ref_smi
+
+    def heavy_rmsd(self, top, pos1, pos2):
+        top = mdtraj.Topology.from_openmm(top)
+        traj = mdtraj.Trajectory(np.stack([pos1, pos2]), top)
+        traj = traj.atom_slice(top.select("protein and (symbol != H)"))
+        traj.superpose(traj)
+        return mdtraj.rmsd(traj, traj)[1]
+        
 
     def mol_to_smiles(self, top, pos):
         top = mdtraj.Topology.from_openmm(top)
@@ -191,10 +208,13 @@ class VAMDRunner:
         smi = rdkit.Chem.rdmolfiles.MolToSmiles(mol)
         return smi
 
+    
+
     def md_single(self, top, pos, check_stereo=False, ref_smi=None):
         forcefield = ForceField('amber14-all.xml', 'implicit/gbn2.xml')
         modeller = Modeller(top, pos)
         modeller.addHydrogens()
+        
         
         system = forcefield.createSystem(modeller.topology, constraints=HBonds)
         integrator = LangevinMiddleIntegrator(350 * unit.kelvin, 1 / unit.picosecond, 2 * unit.femtosecond)
@@ -203,18 +223,32 @@ class VAMDRunner:
                         platform=Platform.getPlatformByName('CUDA'))
         
         sim.context.setPositions(modeller.positions)
+        pos_before = get_positions(sim)
 
+        energy_before = get_energy(sim)
         if not self.args.no_relax:
             sim.minimizeEnergy()
+        energy_relaxed = get_energy(sim)
+        pos_relaxed = get_positions(sim)
 
-        if check_stereo and (not self.check_stereochemistry(modeller.topology, get_positions(sim), ref_smi)):
+        self.log('minimization_energy', (energy_before - energy_relaxed) / unit.kilojoule_per_mole)
+        self.log('minimization_rmsd', self.heavy_rmsd(modeller.topology, pos_before, pos_relaxed) * 10.0) # angstroms
+        
+
+        if check_stereo and (not self.check_stereochemistry(modeller.topology, pos_relaxed, ref_smi)):
             logger.info("Rejecting relaxed structure: wrong stereochemistry")
             return top, None
             
         sim.context.setVelocitiesToTemperature(350 * unit.kelvin)
         sim.step(self.args.num_steps)
 
-        return modeller.topology, get_positions(sim)
+        energy_after = get_energy(sim)
+        pos_after = get_positions(sim)
+        
+        self.log('simulation_energy', (energy_after - energy_relaxed) / unit.kilojoule_per_mole)
+        self.log('simulation_rmsd', self.heavy_rmsd(modeller.topology, pos_relaxed, pos_after) * 10.0)
+
+        return modeller.topology, pos_after
         
 
     def md_batch(self, batch, callback = lambda x, y: None):
@@ -229,7 +263,6 @@ class VAMDRunner:
 
             if pos is None:
                 pos = batch['ref_pos'][i] # stereochemistry check failed
-                pos = pos.numpy() @ Rotation.random().as_matrix().T.astype(np.float32)
-            
+             
             callback(top, pos)
         
